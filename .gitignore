@@ -1,0 +1,14 @@
+# Local environment and secrets
+.env
+
+# Runtime data volumes
+data/
+logs/
+lib/
+certs/
+fonts/
+
+# OS / editor
+.DS_Store
+*.swp
+*~

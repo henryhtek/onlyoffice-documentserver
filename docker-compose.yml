@@ -1,0 +1,66 @@
+# ONLYOFFICE Document Server - Self-hosted Docker Compose
+# Project name: onlyoffice
+# Designed for Nginx Proxy Manager (network: outside) + Nextcloud
+# Local FQDN and volume paths are configurable via .env
+# Latest Compose specification format
+
+name: onlyoffice
+
+services:
+  documentserver:
+    image: onlyoffice/documentserver:${DOCUMENTSERVER_TAG:-latest}
+    container_name: onlyoffice-documentserver
+    restart: unless-stopped
+    stop_grace_period: 60s
+    stdin_open: true
+
+    # No host ports published by default – NPM reaches the container
+    # via the shared Docker network "outside" on port 80.
+    # Uncomment the lines below only if you need direct host access
+    # (e.g. for debugging).
+    # ports:
+    #   - "${HTTP_PORT:-8080}:80"
+    #   - "${HTTPS_PORT:-8443}:443"
+
+    environment:
+      # JWT (required for secure Nextcloud integration)
+      JWT_ENABLED: ${JWT_ENABLED:-true}
+      JWT_SECRET: ${JWT_SECRET:-onlyoffice-jwt-secret-change-me}
+      JWT_HEADER: ${JWT_HEADER:-Authorization}
+      JWT_IN_BODY: ${JWT_IN_BODY:-false}
+
+      # Allow Document Server to talk to Nextcloud when Nextcloud uses a self-signed cert
+      USE_UNAUTHORIZED_STORAGE: ${USE_UNAUTHORIZED_STORAGE:-true}
+
+      # SSL inside the container is optional.
+      # Recommended: terminate SSL at Nginx Proxy Manager and keep HTTP only here.
+      # Leave the SSL_* variables unset / commented when using NPM SSL termination.
+      # SSL_CERTIFICATE_PATH: ${SSL_CERTIFICATE_PATH:-/var/www/onlyoffice/Data/certs/tls.crt}
+      # SSL_KEY_PATH: ${SSL_KEY_PATH:-/var/www/onlyoffice/Data/certs/tls.key}
+      # SSL_DHPARAM_PATH: ${SSL_DHPARAM_PATH:-/var/www/onlyoffice/Data/certs/dhparam.pem}
+      # ONLYOFFICE_HTTPS_HSTS_ENABLED: ${ONLYOFFICE_HTTPS_HSTS_ENABLED:-true}
+      # ONLYOFFICE_HTTPS_HSTS_MAXAGE: ${ONLYOFFICE_HTTPS_HSTS_MAXAGE:-31536000}
+
+    volumes:
+      - ${DATA_VOLUME:-./data}:/var/www/onlyoffice/Data
+      - ${LOGS_VOLUME:-./logs}:/var/log/onlyoffice
+      - ${LIB_VOLUME:-./lib}:/var/lib/onlyoffice
+      # Mount certs only if you enable SSL inside the container
+      # - ${CERTS_VOLUME:-./certs}:/var/www/onlyoffice/Data/certs
+      # Optional custom fonts
+      # - ${FONTS_VOLUME:-./fonts}:/usr/share/fonts/truetype/custom
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+    networks:
+      - outside
+
+networks:
+  outside:
+    external: true
+    name: ${DOCKER_NETWORK:-outside}
